@@ -116,3 +116,52 @@ def test_fetch_new_messages_raises_on_repeated_conflict(monkeypatch):
         assert delete_called["count"] == 1
 
     asyncio.run(run_test())
+
+
+def test_fetch_new_messages_handles_channel_post_without_sender_chat(monkeypatch):
+    """Сообщение без ``sender_chat`` не должно отбрасываться, если есть ``chat.id``."""
+
+    async def run_test() -> None:
+        client = TelegramClient(
+            "test-token",
+            source_user_id=123,
+            target_channel="@target",
+            max_attempts=1,
+        )
+
+        url = f"{client.base_url}/bot{client.token}/getUpdates"
+        request = httpx.Request("GET", url)
+
+        success_response = httpx.Response(
+            status_code=200,
+            json={
+                "ok": True,
+                "result": [
+                    {
+                        "update_id": 77,
+                        "channel_post": {
+                            "message_id": 555,
+                            "text": "Привет",
+                            "chat": {"id": "123"},
+                        },
+                    }
+                ],
+            },
+            request=request,
+        )
+
+        async def fake_get(*args, **kwargs):
+            return success_response
+
+        monkeypatch.setattr(client._client, "get", fake_get)
+
+        messages, new_last_update = await client.fetch_new_messages()
+
+        await client.aclose()
+
+        assert len(messages) == 1
+        assert messages[0].text == "Привет"
+        assert messages[0].message_id == 555
+        assert new_last_update == 77
+
+    asyncio.run(run_test())

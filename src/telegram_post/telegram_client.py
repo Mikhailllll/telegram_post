@@ -140,8 +140,24 @@ class TelegramClient:
             message_block = update.get("channel_post") or update.get("message") or {}
             sender_chat = message_block.get("sender_chat") or {}
             from_user = message_block.get("from") or {}
-            sender_id = sender_chat.get("id") or from_user.get("id")
-            if sender_id != self.source_user_id:
+            sender_id_raw_candidates = (
+                sender_chat.get("id"),
+                from_user.get("id"),
+                (message_block.get("chat") or {}).get("id"),
+            )
+            sender_id: Optional[int] = None
+            for sender_id_raw in sender_id_raw_candidates:
+                if sender_id_raw is None:
+                    continue
+                try:
+                    sender_id = int(sender_id_raw)
+                except (TypeError, ValueError):
+                    sender_id = None
+                    continue
+                else:
+                    break
+
+            if sender_id is None or sender_id != self.source_user_id:
                 continue
 
             text = message_block.get("text") or message_block.get("caption")
