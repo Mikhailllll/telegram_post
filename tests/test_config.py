@@ -42,6 +42,13 @@ def test_settings_falls_back_to_legacy_variable(base_env: dict[str, str]) -> Non
     assert settings.telegram_target_channel == "@legacy-channel"
 
 
+def test_settings_requires_environment_variables() -> None:
+    """При отсутствии всех переменных конфигурации выбрасывается ошибка."""
+
+    with pytest.raises(SettingsError):
+        Settings.from_env({})
+
+
 def test_settings_prefers_new_source_user_variable(base_env: dict[str, str]) -> None:
     """Для ID источника приоритет у новой переменной окружения."""
 
