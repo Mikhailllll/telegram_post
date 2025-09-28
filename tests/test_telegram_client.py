@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import json
+
 import httpx
 import pytest
 
@@ -101,13 +103,16 @@ def test_fetch_new_messages_passes_allowed_updates(monkeypatch):
 
         async def fake_get(*args, **kwargs):
             params = kwargs.get("params") or {}
-            assert params == {
-                "timeout": 0,
-                "allowed_updates": [
-                    "message",
-                    "channel_post",
-                    "edited_channel_post",
-                ],
+            assert set(params.keys()) == {"timeout", "allowed_updates"}
+            assert params["timeout"] == 0
+
+            allowed_updates_raw = params["allowed_updates"]
+            assert isinstance(allowed_updates_raw, str)
+            allowed_updates = json.loads(allowed_updates_raw)
+            assert set(allowed_updates) == {
+                "message",
+                "channel_post",
+                "edited_channel_post",
             }
             return success_response
 
