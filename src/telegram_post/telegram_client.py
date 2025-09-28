@@ -48,6 +48,7 @@ class TelegramClient:
     ) -> None:
         self.token = token
         self.source_user_id = source_user_id
+        self._normalized_source_user_id = self._normalize_sender_id(source_user_id)
         self.target_channel = target_channel
         self.base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(timeout=timeout)
@@ -154,19 +155,12 @@ class TelegramClient:
                 from_user.get("id"),
                 (message_block.get("chat") or {}).get("id"),
             )
-            sender_id: Optional[int] = None
-            for sender_id_raw in sender_id_raw_candidates:
-                if sender_id_raw is None:
-                    continue
-                try:
-                    sender_id = int(sender_id_raw)
-                except (TypeError, ValueError):
-                    sender_id = None
-                    continue
-                else:
-                    break
+            is_source_sender = any(
+                self._is_source_sender(sender_id_raw)
+                for sender_id_raw in sender_id_raw_candidates
+            )
 
-            if sender_id is None or sender_id != self.source_user_id:
+            if not is_source_sender:
                 continue
 
             text = message_block.get("text") or message_block.get("caption")
@@ -182,6 +176,30 @@ class TelegramClient:
 
         logger.debug("Получено %d релевантных сообщений", len(messages))
         return messages, new_last_update
+
+    def _normalize_sender_id(self, sender_id: Any) -> Optional[str]:
+        """Привести идентификатор отправителя к нормализованной строке."""
+
+        if sender_id is None:
+            return None
+
+        sender_str = str(sender_id).strip()
+        if not sender_str:
+            return None
+
+        if sender_str.startswith("-100"):
+            sender_str = sender_str[4:]
+
+        return sender_str
+
+    def _is_source_sender(self, sender_id: Any) -> bool:
+        """Проверить, что идентификатор отправителя совпадает с источником."""
+
+        normalized_sender = self._normalize_sender_id(sender_id)
+        if normalized_sender is None or self._normalized_source_user_id is None:
+            return False
+
+        return normalized_sender == self._normalized_source_user_id
 
     async def publish_post(
         self, text: str, *, disable_preview: bool = False
