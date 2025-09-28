@@ -37,7 +37,7 @@ class Settings:
             Экземпляр настроек.
         """
 
-        env_mapping = env or os.environ
+        env_mapping = os.environ if env is None else env
         required = {
             "deepseek_api_key": ("DEEPSEEK_APPI",),
             "telegram_bot_username": ("USERNAMETELERGRAMBOT",),
