@@ -79,7 +79,14 @@ class TelegramClient:
             Список сообщений и новый ``last_update_id``.
         """
 
-        params: dict[str, Any] = {"timeout": 0}
+        params: dict[str, Any] = {
+            "timeout": 0,
+            "allowed_updates": [
+                "message",
+                "channel_post",
+                "edited_channel_post",
+            ],
+        }
         if last_update_id is not None:
             params["offset"] = last_update_id + 1
 
