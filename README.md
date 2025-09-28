@@ -26,7 +26,7 @@ pip install -r requirements.txt
 | `DEEPSEEK_APPI`          | API-ключ DeepSeek                           |
 | `USERNAMETELERGRAMBOT`   | Юзернейм бота (например, `@my_bot`)         |
 | `TELEGRAMKEY`            | Токен Telegram Bot API                      |
-| `TELEGRAMKANAL`          | ID/юзернейм канала для публикации постов    |
+| `TELEGRAMKANAL_ID_S_MINYSOM_V_NA4ALE` | ID/юзернейм канала для публикации постов (можно использовать `TELEGRAMKANAL` для обратной совместимости) |
 | `TGUSERID`               | ID канала-источника (значение `sender_chat`)|
 
 Создайте файл `.env` или экспортируйте переменные в окружение перед запуском.
