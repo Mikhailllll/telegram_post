@@ -3,6 +3,7 @@ name: Automerge Codex
 on:
   pull_request:
     types:
+      - opened
       - labeled
       - synchronize
       - reopened
@@ -14,9 +15,7 @@ permissions:
 
 jobs:
   automerge:
-    if: >-
-      contains(join(github.event.pull_request.labels.*.name, ','), 'automerge') &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Автослияние PR
