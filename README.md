@@ -27,7 +27,7 @@ pip install -r requirements.txt
 | `USERNAMETELERGRAMBOT`   | Юзернейм бота (например, `@my_bot`)         |
 | `TELEGRAMKEY`            | Токен Telegram Bot API                      |
 | `TELEGRAMKANAL_ID_S_MINYSOM_V_NA4ALE` | ID/юзернейм канала для публикации постов (можно использовать `TELEGRAMKANAL` для обратной совместимости) |
-| `TGUSERID`               | ID канала-источника (значение `sender_chat`)|
+| `TG_ISTO4NIK_ID`         | ID канала-источника (значение `sender_chat`, поддерживается `TGUSERID` как устаревшее имя) |
 
 Создайте файл `.env` или экспортируйте переменные в окружение перед запуском.
 
