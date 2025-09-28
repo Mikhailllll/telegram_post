@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from typing import List, Tuple
+import json
+from typing import List, Optional, Tuple
 
 from unittest.mock import AsyncMock
 
 import pytest
 
 from telegram_post.config import Settings
-from telegram_post.main import poll_loop
+from telegram_post.main import poll_loop, run_poll_once
 from telegram_post.telegram_client import TelegramMessage
 
 
@@ -34,6 +35,30 @@ class DummyDeepSeekClient:
 
     async def __aexit__(self, exc_type, exc, tb) -> None:  # pragma: no cover - заглушка
         return None
+
+
+class StatefulDummyTelegramClient:
+    """Телеграм-клиент, запоминающий входящий last_update_id."""
+
+    def __init__(self) -> None:
+        self.calls: list[Optional[int]] = []
+
+    async def __aenter__(self) -> "StatefulDummyTelegramClient":
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:  # pragma: no cover - заглушка
+        return None
+
+    async def fetch_new_messages(
+        self, last_update_id: Optional[int]
+    ) -> Tuple[list[TelegramMessage], int]:
+        self.calls.append(last_update_id)
+        if last_update_id is None:
+            message = TelegramMessage(update_id=1, message_id=100, text="first")
+            return [message], 1
+        if last_update_id == 1:
+            return [], 1
+        raise AssertionError("Неожиданный last_update_id")
 
 
 @pytest.mark.anyio
@@ -94,3 +119,51 @@ async def test_poll_loop_limits_messages_with_missing_last_update(
     assert processed_batches[0] == [2, 3]
     assert processed_batches[1] == [4, 5, 6]
     assert process_mock.await_count == 2
+
+
+def test_run_poll_once_persists_state(monkeypatch, tmp_path):
+    """Проверить сохранение и повторное использование last_update_id."""
+
+    state_file = tmp_path / "state.json"
+    settings = Settings(
+        deepseek_api_key="key",
+        telegram_bot_username="bot",
+        telegram_bot_token="token",
+        telegram_target_channel="channel",
+        telegram_source_user_id=123,
+    )
+
+    monkeypatch.setattr(
+        "telegram_post.main.Settings.from_env",
+        classmethod(lambda cls: settings),
+    )
+
+    telegram_client = StatefulDummyTelegramClient()
+    dummy_deepseek_client = DummyDeepSeekClient()
+
+    monkeypatch.setattr(
+        "telegram_post.main.TelegramClient",
+        lambda *args, **kwargs: telegram_client,
+    )
+    monkeypatch.setattr(
+        "telegram_post.main.DeepSeekClient",
+        lambda *args, **kwargs: dummy_deepseek_client,
+    )
+
+    process_mock = AsyncMock(return_value=1)
+    monkeypatch.setattr("telegram_post.main._process_messages", process_mock)
+
+    run_poll_once(state_file=state_file)
+
+    assert state_file.exists()
+    assert json.loads(state_file.read_text(encoding="utf-8")) == {"last_update_id": 1}
+    assert telegram_client.calls == [None]
+    assert process_mock.await_count == 1
+    first_call_messages = process_mock.await_args_list[0].args[0]
+    assert [msg.message_id for msg in first_call_messages] == [100]
+
+    process_mock.reset_mock()
+    run_poll_once(state_file=state_file)
+
+    assert telegram_client.calls == [None, 1]
+    assert process_mock.await_count == 0
