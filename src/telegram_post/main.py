@@ -32,9 +32,7 @@ def read_last_update_id(state_file: Path) -> Optional[int]:
     try:
         raw = state_file.read_text(encoding="utf-8").strip()
     except OSError as exc:  # pragma: no cover - ошибки ввода/вывода редки
-        logger.warning(
-            "Не удалось прочитать файл состояния %s: %s", state_file, exc
-        )
+        logger.warning("Не удалось прочитать файл состояния %s: %s", state_file, exc)
         return None
 
     if not raw:
@@ -68,9 +66,7 @@ def write_last_update_id(state_file: Path, last_update_id: int) -> None:
             encoding="utf-8",
         )
     except OSError as exc:  # pragma: no cover - ошибки ввода/вывода редки
-        logger.warning(
-            "Не удалось записать файл состояния %s: %s", state_file, exc
-        )
+        logger.warning("Не удалось записать файл состояния %s: %s", state_file, exc)
 
 
 async def _process_messages(
@@ -166,9 +162,7 @@ def run_poll_once(state_file: Path = DEFAULT_STATE_FILE) -> None:
         raise typer.Exit(code=1) from exc
 
     last_update_id = read_last_update_id(state_file)
-    new_last_update = asyncio.run(
-        poll_once(settings, last_update_id=last_update_id)
-    )
+    new_last_update = asyncio.run(poll_once(settings, last_update_id=last_update_id))
     if new_last_update is not None:
         write_last_update_id(state_file, new_last_update)
 
