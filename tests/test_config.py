@@ -15,6 +15,7 @@ def base_env() -> dict[str, str]:
         "DEEPSEEK_APPI": "deepseek",
         "USERNAMETELERGRAMBOT": "@bot",
         "TELEGRAMKEY": "token",
+        "TG_ISTO4NIK_ID": "123",
         "TGUSERID": "123",
         "TELEGRAMKANAL": "@legacy-channel",
     }
@@ -39,6 +40,30 @@ def test_settings_falls_back_to_legacy_variable(base_env: dict[str, str]) -> Non
     settings = Settings.from_env(base_env)
 
     assert settings.telegram_target_channel == "@legacy-channel"
+
+
+def test_settings_prefers_new_source_user_variable(base_env: dict[str, str]) -> None:
+    """Для ID источника приоритет у новой переменной окружения."""
+
+    base_env["TG_ISTO4NIK_ID"] = "456"
+    base_env["TGUSERID"] = "789"
+
+    settings = Settings.from_env(base_env)
+
+    assert settings.telegram_source_user_id == 456
+
+
+def test_settings_falls_back_to_legacy_source_user_variable(
+    base_env: dict[str, str]
+) -> None:
+    """Если новой переменной нет, используется устаревшее имя."""
+
+    base_env.pop("TG_ISTO4NIK_ID", None)
+    base_env["TGUSERID"] = "654"
+
+    settings = Settings.from_env(base_env)
+
+    assert settings.telegram_source_user_id == 654
 
 
 def test_settings_error_when_both_channel_variables_missing(

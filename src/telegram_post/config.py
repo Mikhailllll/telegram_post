@@ -46,7 +46,7 @@ class Settings:
                 "TELEGRAMKANAL_ID_S_MINYSOM_V_NA4ALE",
                 "TELEGRAMKANAL",
             ),
-            "telegram_source_user_id": ("TGUSERID",),
+            "telegram_source_user_id": ("TG_ISTO4NIK_ID", "TGUSERID"),
         }
 
         resolved: dict[str, str] = {}
@@ -73,7 +73,9 @@ class Settings:
         try:
             source_user_id = int(resolved["telegram_source_user_id"])
         except ValueError as exc:  # pragma: no cover - защита от некорректного ввода
-            raise SettingsError("TGUSERID должен быть целым числом") from exc
+            raise SettingsError(
+                "TG_ISTO4NIK_ID (или TGUSERID) должен быть целым числом"
+            ) from exc
 
         return cls(
             deepseek_api_key=resolved["deepseek_api_key"],
