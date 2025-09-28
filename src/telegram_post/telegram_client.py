@@ -7,7 +7,13 @@ from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional, Tuple
 
 import httpx
-from tenacity import AsyncRetrying, RetryError, retry_if_exception_type, stop_after_attempt, wait_random_exponential
+from tenacity import (
+    AsyncRetrying,
+    RetryError,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -87,7 +93,9 @@ class TelegramClient:
                     data = response.json()
         except RetryError as exc:  # pragma: no cover - сетевой сценарий
             logger.exception("Ошибка получения обновлений: %s", exc)
-            raise TelegramClientError("Не удалось получить обновления Telegram") from exc
+            raise TelegramClientError(
+                "Не удалось получить обновления Telegram"
+            ) from exc
 
         if not data.get("ok"):
             raise TelegramClientError(f"Telegram API вернул ошибку: {data}")
@@ -112,12 +120,18 @@ class TelegramClient:
                 continue
 
             message_id = int(message_block.get("message_id", 0))
-            messages.append(TelegramMessage(update_id=update_id, message_id=message_id, text=text.strip()))
+            messages.append(
+                TelegramMessage(
+                    update_id=update_id, message_id=message_id, text=text.strip()
+                )
+            )
 
         logger.debug("Получено %d релевантных сообщений", len(messages))
         return messages, new_last_update
 
-    async def publish_post(self, text: str, *, disable_preview: bool = False) -> dict[str, Any]:
+    async def publish_post(
+        self, text: str, *, disable_preview: bool = False
+    ) -> dict[str, Any]:
         """Отправить пост в целевой канал."""
 
         url = f"{self.base_url}/bot{self.token}/sendMessage"
@@ -136,10 +150,14 @@ class TelegramClient:
                     data = response.json()
         except RetryError as exc:  # pragma: no cover
             logger.exception("Ошибка отправки сообщения: %s", exc)
-            raise TelegramClientError("Не удалось отправить сообщение Telegram") from exc
+            raise TelegramClientError(
+                "Не удалось отправить сообщение Telegram"
+            ) from exc
 
         if not data.get("ok"):
-            raise TelegramClientError(f"Telegram API вернул ошибку при отправке: {data}")
+            raise TelegramClientError(
+                f"Telegram API вернул ошибку при отправке: {data}"
+            )
 
         logger.info("Сообщение опубликовано в %s", self.target_channel)
         return data.get("result", {})

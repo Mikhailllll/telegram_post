@@ -22,7 +22,9 @@ class Settings:
     telegram_source_user_id: int
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | MutableMapping[str, str] | None = None) -> "Settings":
+    def from_env(
+        cls, env: Mapping[str, str] | MutableMapping[str, str] | None = None
+    ) -> "Settings":
         """Создать настройки из переменных окружения.
 
         Args:
@@ -47,7 +49,8 @@ class Settings:
         missing = [var for var in required.values() if not env_mapping.get(var)]
         if missing:
             raise SettingsError(
-                "Отсутствуют обязательные переменные окружения: " + ", ".join(sorted(missing))
+                "Отсутствуют обязательные переменные окружения: "
+                + ", ".join(sorted(missing))
             )
 
         try:
