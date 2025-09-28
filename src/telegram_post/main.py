@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -17,6 +19,58 @@ from .telegram_client import TelegramClient, TelegramMessage
 logger = logging.getLogger(__name__)
 POPULAR_HASHTAGS = "#crypto #bitcoin #trading #altcoins #defi"
 EMOJI_PREFIX = "🚀"
+DEFAULT_STATE_FILE = Path(".telegram_post_state.json")
+
+
+def read_last_update_id(state_file: Path) -> Optional[int]:
+    """Прочитать идентификатор последнего обновления из файла состояния."""
+
+    if not state_file.exists():
+        logger.debug("Файл состояния %s отсутствует", state_file)
+        return None
+
+    try:
+        raw = state_file.read_text(encoding="utf-8").strip()
+    except OSError as exc:  # pragma: no cover - ошибки ввода/вывода редки
+        logger.warning(
+            "Не удалось прочитать файл состояния %s: %s", state_file, exc
+        )
+        return None
+
+    if not raw:
+        return None
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Файл состояния %s содержит некорректный JSON: %s", state_file, exc
+        )
+        return None
+
+    last_update_id = payload.get("last_update_id")
+    if isinstance(last_update_id, int):
+        return last_update_id
+
+    logger.warning(
+        "Файл состояния %s не содержит корректного last_update_id", state_file
+    )
+    return None
+
+
+def write_last_update_id(state_file: Path, last_update_id: int) -> None:
+    """Сохранить идентификатор последнего обновления в файл состояния."""
+
+    try:
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text(
+            json.dumps({"last_update_id": last_update_id}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError as exc:  # pragma: no cover - ошибки ввода/вывода редки
+        logger.warning(
+            "Не удалось записать файл состояния %s: %s", state_file, exc
+        )
 
 
 async def _process_messages(
@@ -102,8 +156,8 @@ async def poll_loop(settings: Settings, *, interval: int = 60) -> None:
             await asyncio.sleep(interval)
 
 
-def run_poll_once() -> None:
-    """Запустить одноразовый опрос через CLI."""
+def run_poll_once(state_file: Path = DEFAULT_STATE_FILE) -> None:
+    """Запустить одноразовый опрос через CLI с учётом файла состояния."""
 
     try:
         settings = Settings.from_env()
@@ -111,7 +165,12 @@ def run_poll_once() -> None:
         typer.echo(str(exc))
         raise typer.Exit(code=1) from exc
 
-    asyncio.run(poll_once(settings))
+    last_update_id = read_last_update_id(state_file)
+    new_last_update = asyncio.run(
+        poll_once(settings, last_update_id=last_update_id)
+    )
+    if new_last_update is not None:
+        write_last_update_id(state_file, new_last_update)
 
 
 def run_poll_loop(interval: int = 60) -> None:
@@ -130,10 +189,16 @@ app = typer.Typer(help="Автоматизация публикации пост
 
 
 @app.command("poll-once")
-def cli_poll_once() -> None:
+def cli_poll_once(
+    state_file: Path = typer.Option(
+        DEFAULT_STATE_FILE,
+        "--state-file",
+        help="Путь к JSON-файлу состояния с last_update_id",
+    )
+) -> None:
     """Разово проверить канал-источник и опубликовать новые посты."""
 
-    run_poll_once()
+    run_poll_once(state_file=state_file)
 
 
 @app.command("run-loop")
