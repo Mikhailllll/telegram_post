@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from telegram_post.config import Settings
-from telegram_post.main import poll_loop, run_poll_once
+from telegram_post.main import poll_loop, poll_once, run_poll_once
 from telegram_post.telegram_client import TelegramMessage
 
 
@@ -119,6 +119,49 @@ async def test_poll_loop_limits_messages_with_missing_last_update(
     assert processed_batches[0] == [2, 3]
     assert processed_batches[1] == [4, 5, 6]
     assert process_mock.await_count == 2
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_poll_once_uses_all_messages_with_existing_last_update(
+    monkeypatch, anyio_backend
+):
+    """При наличии last_update_id должны обрабатываться все новые сообщения."""
+
+    settings = Settings(
+        deepseek_api_key="key",
+        telegram_bot_username="bot",
+        telegram_bot_token="token",
+        telegram_target_channel="channel",
+        telegram_source_user_id=123,
+    )
+
+    new_messages = [
+        TelegramMessage(update_id=11, message_id=101, text="m1"),
+        TelegramMessage(update_id=12, message_id=102, text="m2"),
+        TelegramMessage(update_id=13, message_id=103, text="m3"),
+        TelegramMessage(update_id=14, message_id=104, text="m4"),
+    ]
+
+    dummy_telegram_client = DummyTelegramClient(responses=[(new_messages, 14)])
+    dummy_deepseek_client = DummyDeepSeekClient()
+
+    monkeypatch.setattr(
+        "telegram_post.main.TelegramClient", lambda *_, **__: dummy_telegram_client
+    )
+    monkeypatch.setattr(
+        "telegram_post.main.DeepSeekClient", lambda *_, **__: dummy_deepseek_client
+    )
+
+    process_mock = AsyncMock(return_value=len(new_messages))
+    monkeypatch.setattr("telegram_post.main._process_messages", process_mock)
+
+    result = await poll_once(settings, last_update_id=10)
+
+    assert result == 14
+    assert process_mock.await_count == 1
+    processed_messages = process_mock.await_args_list[0].args[0]
+    assert [msg.message_id for msg in processed_messages] == [101, 102, 103, 104]
 
 
 def test_run_poll_once_persists_state(monkeypatch, tmp_path):

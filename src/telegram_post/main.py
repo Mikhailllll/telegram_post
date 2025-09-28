@@ -117,7 +117,7 @@ async def poll_once(
             logger.info("Новых сообщений не обнаружено")
             return new_last_update
 
-        if len(messages) > 2:
+        if last_update_id is None and len(messages) > 2:
             messages = messages[-2:]
         logger.info("К публикации подготовлено %d сообщений", len(messages))
         processed = await _process_messages(messages, deepseek_client, telegram_client)
