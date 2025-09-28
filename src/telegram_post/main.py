@@ -67,6 +67,9 @@ async def poll_once(
             logger.info("Новых сообщений не обнаружено")
             return new_last_update
 
+        if len(messages) > 2:
+            messages = messages[-2:]
+        logger.info("К публикации подготовлено %d сообщений", len(messages))
         processed = await _process_messages(messages, deepseek_client, telegram_client)
         logger.info("Опубликовано %d сообщений", processed)
         return new_last_update
@@ -82,10 +85,14 @@ async def poll_loop(settings: Settings, *, interval: int = 60) -> None:
         target_channel=settings.telegram_target_channel,
     ) as telegram_client, DeepSeekClient(settings.deepseek_api_key) as deepseek_client:
         while True:
+            previous_last_update_id = last_update_id
             messages, last_update_id = await telegram_client.fetch_new_messages(
                 last_update_id
             )
             if messages:
+                if previous_last_update_id is None and len(messages) > 2:
+                    messages = messages[-2:]
+                logger.info("Цикл: к публикации %d сообщений", len(messages))
                 processed = await _process_messages(
                     messages, deepseek_client, telegram_client
                 )
