@@ -2,3 +2,5 @@ httpx~=0.25.2
 tenacity==8.2.3
 typer==0.9.0
 python-telegram-bot==20.7
+
+black==24.8.0

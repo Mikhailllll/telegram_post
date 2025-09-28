@@ -50,7 +50,9 @@ def prepare_post(text: str) -> str:
     return stripped
 
 
-async def poll_once(settings: Settings, *, last_update_id: Optional[int] = None) -> Optional[int]:
+async def poll_once(
+    settings: Settings, *, last_update_id: Optional[int] = None
+) -> Optional[int]:
     """Считать новые посты и опубликовать их один раз."""
 
     async with TelegramClient(
@@ -58,7 +60,9 @@ async def poll_once(settings: Settings, *, last_update_id: Optional[int] = None)
         source_user_id=settings.telegram_source_user_id,
         target_channel=settings.telegram_target_channel,
     ) as telegram_client, DeepSeekClient(settings.deepseek_api_key) as deepseek_client:
-        messages, new_last_update = await telegram_client.fetch_new_messages(last_update_id)
+        messages, new_last_update = await telegram_client.fetch_new_messages(
+            last_update_id
+        )
         if not messages:
             logger.info("Новых сообщений не обнаружено")
             return new_last_update
@@ -78,9 +82,13 @@ async def poll_loop(settings: Settings, *, interval: int = 60) -> None:
         target_channel=settings.telegram_target_channel,
     ) as telegram_client, DeepSeekClient(settings.deepseek_api_key) as deepseek_client:
         while True:
-            messages, last_update_id = await telegram_client.fetch_new_messages(last_update_id)
+            messages, last_update_id = await telegram_client.fetch_new_messages(
+                last_update_id
+            )
             if messages:
-                processed = await _process_messages(messages, deepseek_client, telegram_client)
+                processed = await _process_messages(
+                    messages, deepseek_client, telegram_client
+                )
                 logger.info("Цикл: опубликовано %d сообщений", processed)
             else:
                 logger.debug("Цикл: нет новых сообщений")
@@ -122,7 +130,9 @@ def cli_poll_once() -> None:
 
 
 @app.command("run-loop")
-def cli_run_loop(interval: int = typer.Option(60, help="Интервал между опросами в секундах")) -> None:
+def cli_run_loop(
+    interval: int = typer.Option(60, help="Интервал между опросами в секундах")
+) -> None:
     """Запустить бесконечный цикл опроса."""
 
     run_poll_loop(interval=interval)
