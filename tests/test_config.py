@@ -117,6 +117,7 @@ def test_run_poll_once_logs_masked_settings(tmp_path, monkeypatch, caplog) -> No
     )
     monkeypatch.setattr(main, "read_last_update_id", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(main, "write_last_update_id", lambda *_args, **_kwargs: None)
+
     def _fake_asyncio_run(coro, *_args, **_kwargs):
         coro.close()
         return None
