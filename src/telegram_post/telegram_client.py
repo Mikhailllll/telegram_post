@@ -92,6 +92,24 @@ class TelegramClient:
                     response.raise_for_status()
                     data = response.json()
         except RetryError as exc:  # pragma: no cover - сетевой сценарий
+            last_attempt_exception: Optional[BaseException] = None
+            if getattr(exc, "last_attempt", None) is not None:
+                try:
+                    last_attempt_exception = exc.last_attempt.exception()
+                except Exception:  # pragma: no cover - защитный сценарий
+                    last_attempt_exception = None
+
+            if (
+                isinstance(last_attempt_exception, httpx.HTTPStatusError)
+                and last_attempt_exception.response is not None
+                and last_attempt_exception.response.status_code == 409
+            ):
+                logger.warning(
+                    "Получен ответ 409 при получении обновлений Telegram: %s",
+                    last_attempt_exception,
+                )
+                return [], last_update_id
+
             logger.exception("Ошибка получения обновлений: %s", exc)
             raise TelegramClientError(
                 "Не удалось получить обновления Telegram"
