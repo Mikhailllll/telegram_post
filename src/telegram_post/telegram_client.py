@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional, Tuple
@@ -79,13 +80,14 @@ class TelegramClient:
             Список сообщений и новый ``last_update_id``.
         """
 
+        allowed_updates = [
+            "message",
+            "channel_post",
+            "edited_channel_post",
+        ]
         params: dict[str, Any] = {
             "timeout": 0,
-            "allowed_updates": [
-                "message",
-                "channel_post",
-                "edited_channel_post",
-            ],
+            "allowed_updates": json.dumps(allowed_updates),
         }
         if last_update_id is not None:
             params["offset"] = last_update_id + 1
