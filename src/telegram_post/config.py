@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from dataclasses import fields
 from typing import Mapping, MutableMapping
 
 
@@ -20,6 +21,25 @@ class Settings:
     telegram_bot_token: str
     telegram_target_channel: str
     telegram_source_user_id: int
+
+    @staticmethod
+    def mask_secret(value: str) -> str:
+        """Скрыть середину секретного значения."""
+
+        if not value:
+            return value
+        prefix = value[:2]
+        suffix = value[-2:]
+        return f"{prefix}***{suffix}"
+
+    def masked_secrets(self) -> dict[str, str]:
+        """Получить маскированные значения конфигурации."""
+
+        masked: dict[str, str] = {}
+        for field in fields(self):
+            value = getattr(self, field.name)
+            masked[field.name] = self.mask_secret(str(value))
+        return masked
 
     @classmethod
     def from_env(

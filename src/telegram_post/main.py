@@ -161,6 +161,11 @@ def run_poll_once(state_file: Path = DEFAULT_STATE_FILE) -> None:
         typer.echo(str(exc))
         raise typer.Exit(code=1) from exc
 
+    masked_pairs = ", ".join(
+        f"{name}={value}" for name, value in settings.masked_secrets().items()
+    )
+    logger.info("Загружены переменные: %s", masked_pairs)
+
     last_update_id = read_last_update_id(state_file)
     new_last_update = asyncio.run(poll_once(settings, last_update_id=last_update_id))
     if new_last_update is not None:
@@ -175,6 +180,11 @@ def run_poll_loop(interval: int = 60) -> None:
     except SettingsError as exc:  # pragma: no cover
         typer.echo(str(exc))
         raise typer.Exit(code=1) from exc
+
+    masked_pairs = ", ".join(
+        f"{name}={value}" for name, value in settings.masked_secrets().items()
+    )
+    logger.info("Загружены переменные: %s", masked_pairs)
 
     asyncio.run(poll_loop(settings, interval=interval))
 
