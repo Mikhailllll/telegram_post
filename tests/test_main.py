@@ -94,4 +94,3 @@ async def test_poll_loop_limits_messages_with_missing_last_update(
     assert processed_batches[0] == [2, 3]
     assert processed_batches[1] == [4, 5, 6]
     assert process_mock.await_count == 2
-
