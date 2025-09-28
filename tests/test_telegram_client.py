@@ -79,6 +79,46 @@ def test_fetch_new_messages_deletes_webhook_and_retries(monkeypatch, caplog):
     asyncio.run(run_test())
 
 
+def test_fetch_new_messages_passes_allowed_updates(monkeypatch):
+    """Клиент должен запрашивать только разрешённые обновления."""
+
+    async def run_test() -> None:
+        client = TelegramClient(
+            "test-token",
+            source_user_id=123,
+            target_channel="@target",
+            max_attempts=1,
+        )
+
+        url = f"{client.base_url}/bot{client.token}/getUpdates"
+        request = httpx.Request("GET", url)
+
+        success_response = httpx.Response(
+            status_code=200,
+            json={"ok": True, "result": []},
+            request=request,
+        )
+
+        async def fake_get(*args, **kwargs):
+            params = kwargs.get("params") or {}
+            assert params == {
+                "timeout": 0,
+                "allowed_updates": [
+                    "message",
+                    "channel_post",
+                    "edited_channel_post",
+                ],
+            }
+            return success_response
+
+        monkeypatch.setattr(client._client, "get", fake_get)
+
+        await client.fetch_new_messages()
+        await client.aclose()
+
+    asyncio.run(run_test())
+
+
 def test_fetch_new_messages_raises_on_repeated_conflict(monkeypatch):
     """Повторный 409 после удаления webhook приводит к исключению."""
 
