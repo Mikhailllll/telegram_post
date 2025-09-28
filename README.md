@@ -31,6 +31,16 @@ pip install -r requirements.txt
 
 Создайте файл `.env` или экспортируйте переменные в окружение перед запуском.
 
+## Быстрый старт
+
+Создайте и активируйте виртуальное окружение, затем установите зависимости:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 ## Запуск
 
 Однократная обработка новых сообщений:
@@ -43,6 +53,14 @@ PYTHONPATH=src python -m telegram_post.main poll-once
 
 ```bash
 PYTHONPATH=src python -m telegram_post.main run-loop --interval 120
+```
+
+## Тестирование
+
+Для проверки сценариев работы `TelegramClient` выполните:
+
+```bash
+PYTHONPATH=src python -m pytest -q
 ```
 
 ## Логирование и ошибки
