@@ -32,7 +32,7 @@ jobs:
         run: black --check .
 
       - name: Ruff
-        run: ruff .
+        run: ruff check .
 
       - name: Run telegram post once
         run: python -m src.telegram_post.main poll-once
