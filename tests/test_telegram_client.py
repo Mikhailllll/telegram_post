@@ -210,3 +210,50 @@ def test_fetch_new_messages_handles_channel_post_without_sender_chat(monkeypatch
         assert new_last_update == 77
 
     asyncio.run(run_test())
+
+
+def test_fetch_new_messages_accepts_normalized_sender(monkeypatch):
+    """Сообщение с идентификатором ``-100`` должно засчитываться как допустимое."""
+
+    async def run_test() -> None:
+        client = TelegramClient(
+            "test-token",
+            source_user_id=123,
+            target_channel="@target",
+            max_attempts=1,
+        )
+
+        url = f"{client.base_url}/bot{client.token}/getUpdates"
+        request = httpx.Request("GET", url)
+
+        success_response = httpx.Response(
+            status_code=200,
+            json={
+                "ok": True,
+                "result": [
+                    {
+                        "update_id": 10,
+                        "channel_post": {
+                            "message_id": 11,
+                            "text": "Сообщение",
+                            "sender_chat": {"id": "-100123"},
+                        },
+                    }
+                ],
+            },
+            request=request,
+        )
+
+        async def fake_get(*args, **kwargs):
+            return success_response
+
+        monkeypatch.setattr(client._client, "get", fake_get)
+
+        messages, _ = await client.fetch_new_messages()
+
+        await client.aclose()
+
+        assert len(messages) == 1
+        assert messages[0].text == "Сообщение"
+
+    asyncio.run(run_test())
