@@ -85,35 +85,46 @@ class TelegramClient:
 
         url = f"{self.base_url}/bot{self.token}/getUpdates"
 
-        try:
-            async for attempt in AsyncRetrying(**self._retry_settings):
-                with attempt:
-                    response = await self._client.get(url, params=params)
-                    response.raise_for_status()
-                    data = response.json()
-        except RetryError as exc:  # pragma: no cover - сетевой сценарий
-            last_attempt_exception: Optional[BaseException] = None
-            if getattr(exc, "last_attempt", None) is not None:
-                try:
-                    last_attempt_exception = exc.last_attempt.exception()
-                except Exception:  # pragma: no cover - защитный сценарий
-                    last_attempt_exception = None
+        webhook_conflict_handled = False
 
-            if (
-                isinstance(last_attempt_exception, httpx.HTTPStatusError)
-                and last_attempt_exception.response is not None
-                and last_attempt_exception.response.status_code == 409
-            ):
-                logger.warning(
-                    "Получен ответ 409 при получении обновлений Telegram: %s",
-                    last_attempt_exception,
-                )
-                return [], last_update_id
+        while True:
+            try:
+                async for attempt in AsyncRetrying(**self._retry_settings):
+                    with attempt:
+                        response = await self._client.get(url, params=params)
+                        response.raise_for_status()
+                        data = response.json()
+                break
+            except RetryError as exc:  # pragma: no cover - сетевой сценарий
+                last_attempt_exception: Optional[BaseException] = None
+                if getattr(exc, "last_attempt", None) is not None:
+                    try:
+                        last_attempt_exception = exc.last_attempt.exception()
+                    except Exception:  # pragma: no cover - защитный сценарий
+                        last_attempt_exception = None
 
-            logger.exception("Ошибка получения обновлений: %s", exc)
-            raise TelegramClientError(
-                "Не удалось получить обновления Telegram"
-            ) from exc
+                if (
+                    isinstance(last_attempt_exception, httpx.HTTPStatusError)
+                    and last_attempt_exception.response is not None
+                    and last_attempt_exception.response.status_code == 409
+                ):
+                    if not webhook_conflict_handled:
+                        logger.warning(
+                            "Получен ответ 409 при получении обновлений Telegram: %s",
+                            last_attempt_exception,
+                        )
+                        await self._delete_webhook()
+                        webhook_conflict_handled = True
+                        continue
+
+                    raise TelegramClientError(
+                        "Не удалось получить обновления Telegram: конфликт вебхука не устранён"
+                    ) from exc
+
+                logger.exception("Ошибка получения обновлений: %s", exc)
+                raise TelegramClientError(
+                    "Не удалось получить обновления Telegram"
+                ) from exc
 
         if not data.get("ok"):
             raise TelegramClientError(f"Telegram API вернул ошибку: {data}")
@@ -179,3 +190,24 @@ class TelegramClient:
 
         logger.info("Сообщение опубликовано в %s", self.target_channel)
         return data.get("result", {})
+
+    async def _delete_webhook(self) -> None:
+        """Удалить активный webhook Telegram без сброса очереди."""
+
+        url = f"{self.base_url}/bot{self.token}/deleteWebhook"
+        payload = {"drop_pending_updates": False}
+
+        try:
+            async for attempt in AsyncRetrying(**self._retry_settings):
+                with attempt:
+                    response = await self._client.post(url, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+        except RetryError as exc:  # pragma: no cover - сетевой сценарий
+            logger.exception("Ошибка удаления webhook: %s", exc)
+            raise TelegramClientError("Не удалось удалить webhook Telegram") from exc
+
+        if not data.get("ok"):
+            raise TelegramClientError(
+                f"Telegram API вернул ошибку при удалении webhook: {data}"
+            )
